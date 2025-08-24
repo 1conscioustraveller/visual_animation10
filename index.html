@@ -1,0 +1,485 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Psychedelic Visual Generator</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        body {
+            background-color: #121212;
+            color: #f0f0f0;
+            padding: 5px;
+            overflow: hidden;
+            transition: background-color 0.3s;
+        }
+        
+        body.light-mode {
+            background-color: #f0f0f0;
+            color: #121212;
+        }
+        
+        #canvas-container {
+            position: relative;
+            width: 100%;
+            padding-top: 56.25%; /* 16:9 Aspect Ratio */
+            margin-bottom: 10px;
+        }
+        
+        canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            border-radius: 4px;
+        }
+        
+        #controls {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 12px;
+            padding: 10px;
+            background-color: rgba(30, 30, 30, 0.8);
+            border-radius: 6px;
+            margin-bottom: 10px;
+            transition: all 0.3s ease;
+        }
+        
+        body.light-mode #controls {
+            background-color: rgba(240, 240, 240, 0.9);
+        }
+        
+        .control-group {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+        
+        label {
+            font-size: 11px;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        select, input[type="range"] {
+            background: rgba(50, 50, 50, 0.7);
+            color: white;
+            border: 1px solid #444;
+            border-radius: 4px;
+            padding: 6px;
+            font-size: 12px;
+        }
+        
+        body.light-mode select, 
+        body.light-mode input[type="range"] {
+            background: rgba(220, 220, 220, 0.7);
+            color: #121212;
+            border: 1px solid #ccc;
+        }
+        
+        input[type="color"] {
+            width: 100%;
+            height: 30px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        
+        input[type="range"] {
+            -webkit-appearance: none;
+            height: 6px;
+            background: #444;
+            border-radius: 3px;
+            cursor: pointer;
+        }
+        
+        body.light-mode input[type="range"] {
+            background: #ccc;
+        }
+        
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 16px;
+            height: 16px;
+            background: #6a45e2;
+            border-radius: 50%;
+            cursor: pointer;
+        }
+        
+        #mode-toggle {
+            position: fixed;
+            bottom: 15px;
+            right: 15px;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: #333;
+            color: white;
+            border: none;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            z-index: 100;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+        }
+        
+        body.light-mode #mode-toggle {
+            background: #ddd;
+            color: #333;
+        }
+        
+        h1 {
+            font-size: 16px;
+            text-align: center;
+            margin-bottom: 10px;
+            font-weight: 500;
+            letter-spacing: 1px;
+        }
+    </style>
+</head>
+<body>
+    <div id="canvas-container">
+        <canvas id="canvas"></canvas>
+    </div>
+    
+    <h1>PSYCHEDELIC VISUAL GENERATOR</h1>
+    
+    <div id="controls">
+        <div class="control-group">
+            <label for="effect-select">Visual Effect</label>
+            <select id="effect-select">
+                <option value="hyperspace">Hyperspace Tunnel</option>
+                <option value="particles">Particle Swarm</option>
+                <option value="waves">Rainbow Waves</option>
+                <option value="kaleidoscope">Kaleidoscope</option>
+                <option value="spiral">Pulsing Spiral</option>
+                <option value="ripples">Color Ripples</option>
+            </select>
+        </div>
+        
+        <div class="control-group">
+            <label for="speed-slider">Speed</label>
+            <input type="range" id="speed-slider" min="0.1" max="2" step="0.1" value="1">
+        </div>
+        
+        <div class="control-group">
+            <label for="complexity-slider">Complexity</label>
+            <input type="range" id="complexity-slider" min="1" max="10" step="1" value="5">
+        </div>
+        
+        <div class="control-group">
+            <label for="size-slider">Size</label>
+            <input type="range" id="size-slider" min="0.5" max="2" step="0.1" value="1">
+        </div>
+        
+        <div class="control-group">
+            <label for="trail-slider">Trail Effect</label>
+            <input type="range" id="trail-slider" min="0" max="1" step="0.01" value="0.1">
+        </div>
+        
+        <div class="control-group">
+            <label for="color1">Color 1</label>
+            <input type="color" id="color1" value="#ff0066">
+        </div>
+        
+        <div class="control-group">
+            <label for="color2">Color 2</label>
+            <input type="color" id="color2" value="#6600ff">
+        </div>
+    </div>
+    
+    <button id="mode-toggle">🌙</button>
+
+    <script>
+        // DOM elements
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        const effectSelect = document.getElementById('effect-select');
+        const speedSlider = document.getElementById('speed-slider');
+        const complexitySlider = document.getElementById('complexity-slider');
+        const sizeSlider = document.getElementById('size-slider');
+        const trailSlider = document.getElementById('trail-slider');
+        const color1Input = document.getElementById('color1');
+        const color2Input = document.getElementById('color2');
+        const modeToggle = document.getElementById('mode-toggle');
+        
+        // State variables
+        let currentEffect = 'hyperspace';
+        let speed = 1;
+        let complexity = 5;
+        let size = 1;
+        let trail = 0.1;
+        let color1 = '#ff0066';
+        let color2 = '#6600ff';
+        let time = 0;
+        let animationId;
+        
+        // Resize canvas to container
+        function resizeCanvas() {
+            const container = document.getElementById('canvas-container');
+            canvas.width = container.clientWidth;
+            canvas.height = container.clientHeight;
+        }
+        
+        // Initialize and start animation
+        function init() {
+            resizeCanvas();
+            window.addEventListener('resize', resizeCanvas);
+            
+            // Set up event listeners
+            effectSelect.addEventListener('change', (e) => {
+                currentEffect = e.target.value;
+                time = 0;
+                resetCanvas();
+            });
+            
+            speedSlider.addEventListener('input', (e) => {
+                speed = parseFloat(e.target.value);
+            });
+            
+            complexitySlider.addEventListener('input', (e) => {
+                complexity = parseInt(e.target.value);
+            });
+            
+            sizeSlider.addEventListener('input', (e) => {
+                size = parseFloat(e.target.value);
+            });
+            
+            trailSlider.addEventListener('input', (e) => {
+                trail = parseFloat(e.target.value);
+            });
+            
+            color1Input.addEventListener('input', (e) => {
+                color1 = e.target.value;
+            });
+            
+            color2Input.addEventListener('input', (e) => {
+                color2 = e.target.value;
+            });
+            
+            modeToggle.addEventListener('click', toggleDarkMode);
+            
+            // Start animation loop
+            animate();
+        }
+        
+        // Clear canvas with trail effect
+        function resetCanvas() {
+            ctx.fillStyle = `rgba(0, 0, 0, ${trail})`;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+        }
+        
+        // Toggle dark/light mode
+        function toggleDarkMode() {
+            document.body.classList.toggle('light-mode');
+            modeToggle.textContent = document.body.classList.contains('light-mode') ? '☀️' : '🌙';
+        }
+        
+        // Animation loop
+        function animate() {
+            time += 0.01 * speed;
+            
+            // Apply trail effect
+            ctx.fillStyle = `rgba(0, 0, 0, ${trail})`;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            // Draw selected effect
+            switch(currentEffect) {
+                case 'hyperspace':
+                    drawHyperspace();
+                    break;
+                case 'particles':
+                    drawParticles();
+                    break;
+                case 'waves':
+                    drawWaves();
+                    break;
+                case 'kaleidoscope':
+                    drawKaleidoscope();
+                    break;
+                case 'spiral':
+                    drawSpiral();
+                    break;
+                case 'ripples':
+                    drawRipples();
+                    break;
+            }
+            
+            animationId = requestAnimationFrame(animate);
+        }
+        
+        // Visual effect functions
+        function drawHyperspace() {
+            const centerX = canvas.width / 2;
+            const centerY = canvas.height / 2;
+            const maxRadius = Math.sqrt(centerX * centerX + centerY * centerY);
+            
+            for (let i = 0; i < complexity * 20; i++) {
+                const angle = time + i * 0.1;
+                const radius = (i / (complexity * 20)) * maxRadius * size;
+                
+                const x = centerX + Math.cos(angle) * radius;
+                const y = centerY + Math.sin(angle) * radius;
+                
+                const sizeFactor = 2 + Math.sin(time + i * 0.2) * 1.5;
+                const circleSize = (5 + i / 10) * size * sizeFactor;
+                
+                ctx.beginPath();
+                ctx.arc(x, y, circleSize, 0, Math.PI * 2);
+                
+                // Create gradient from center to edge
+                const gradient = ctx.createRadialGradient(x, y, 0, x, y, circleSize);
+                gradient.addColorStop(0, color1);
+                gradient.addColorStop(1, color2);
+                
+                ctx.fillStyle = gradient;
+                ctx.fill();
+            }
+        }
+        
+        function drawParticles() {
+            const particleCount = complexity * 50;
+            
+            for (let i = 0; i < particleCount; i++) {
+                const angle = time + i * 0.1;
+                const distance = (i % 10) * 20 * size;
+                
+                const x = canvas.width / 2 + Math.cos(angle) * distance;
+                const y = canvas.height / 2 + Math.sin(angle) * distance;
+                
+                const particleSize = 2 + Math.sin(time + i) * 2 * size;
+                
+                ctx.beginPath();
+                ctx.arc(x, y, particleSize, 0, Math.PI * 2);
+                
+                // Color based on position and time
+                const hue = (i * 10 + time * 50) % 360;
+                ctx.fillStyle = `hsl(${hue}, 100%, 60%)`;
+                ctx.fill();
+            }
+        }
+        
+        function drawWaves() {
+            const waveCount = complexity;
+            const amplitude = 50 * size;
+            
+            for (let i = 0; i < waveCount; i++) {
+                ctx.beginPath();
+                
+                for (let x = 0; x < canvas.width; x += 5) {
+                    const y = canvas.height / 2 + 
+                             Math.sin(x * 0.01 + time + i * 0.5) * amplitude +
+                             Math.cos(time * 0.7 + i) * 30;
+                    
+                    if (x === 0) {
+                        ctx.moveTo(x, y);
+                    } else {
+                        ctx.lineTo(x, y);
+                    }
+                }
+                
+                // Create gradient for each wave
+                const gradient = ctx.createLinearGradient(0, 0, canvas.width, 0);
+                gradient.addColorStop(0, color1);
+                gradient.addColorStop(1, color2);
+                
+                ctx.strokeStyle = gradient;
+                ctx.lineWidth = 3;
+                ctx.stroke();
+            }
+        }
+        
+        function drawKaleidoscope() {
+            const segments = complexity + 5;
+            const angleStep = (Math.PI * 2) / segments;
+            const radius = Math.min(canvas.width, canvas.height) * 0.4 * size;
+            
+            for (let i = 0; i < segments; i++) {
+                ctx.beginPath();
+                ctx.moveTo(canvas.width / 2, canvas.height / 2);
+                
+                const angle1 = i * angleStep + time;
+                const angle2 = (i + 1) * angleStep + time;
+                
+                const x1 = canvas.width / 2 + Math.cos(angle1) * radius;
+                const y1 = canvas.height / 2 + Math.sin(angle1) * radius;
+                
+                const x2 = canvas.width / 2 + Math.cos(angle2) * radius;
+                const y2 = canvas.height / 2 + Math.sin(angle2) * radius;
+                
+                ctx.lineTo(x1, y1);
+                ctx.lineTo(x2, y2);
+                ctx.closePath();
+                
+                // Color based on segment and time
+                const hue = (i * 30 + time * 20) % 360;
+                ctx.fillStyle = `hsla(${hue}, 100%, 60%, 0.7)`;
+                ctx.fill();
+            }
+        }
+        
+        function drawSpiral() {
+            const centerX = canvas.width / 2;
+            const centerY = canvas.height / 2;
+            const maxRadius = Math.min(canvas.width, canvas.height) * 0.4 * size;
+            const coils = complexity * 2;
+            
+            ctx.beginPath();
+            
+            for (let i = 0; i < 200; i++) {
+                const angle = time + i * 0.05;
+                const radius = (i / 200) * maxRadius;
+                
+                const x = centerX + Math.cos(angle * coils) * radius;
+                const y = centerY + Math.sin(angle * coils) * radius;
+                
+                if (i === 0) {
+                    ctx.moveTo(x, y);
+                } else {
+                    ctx.lineTo(x, y);
+                }
+            }
+            
+            // Create gradient along the spiral
+            const gradient = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
+            gradient.addColorStop(0, color1);
+            gradient.addColorStop(1, color2);
+            
+            ctx.strokeStyle = gradient;
+            ctx.lineWidth = 3;
+            ctx.stroke();
+        }
+        
+        function drawRipples() {
+            const ringCount = complexity * 2;
+            
+            for (let i = 0; i < ringCount; i++) {
+                const progress = (i / ringCount + time * 0.1) % 1;
+                const radius = progress * Math.min(canvas.width, canvas.height) * 0.8 * size;
+                
+                ctx.beginPath();
+                ctx.arc(canvas.width / 2, canvas.height / 2, radius, 0, Math.PI * 2);
+                
+                // Fade out as radius increases
+                const alpha = 1 - progress;
+                ctx.strokeStyle = `hsla(${(i * 30 + time * 50) % 360}, 100%, 60%, ${alpha})`;
+                ctx.lineWidth = 3;
+                ctx.stroke();
+            }
+        }
+        
+        // Initialize when page loads
+        window.addEventListener('load', init);
+    </script>
+</body>
+</html>
